@@ -1,0 +1,6 @@
+.idea
+**/deploy.sh
+**/cfn.yml
+test.db
+logs
+__pycache__

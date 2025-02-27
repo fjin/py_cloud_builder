@@ -1,0 +1,13 @@
+#!/bin/bash
+
+echo "Set Default region ... "
+export AWS_DEFAULT_REGION='ap-southeast-2'
+
+SCRIPT_DIR=$(dirname "$0")
+TEMPLATE_PATH="$SCRIPT_DIR/cfn.yml"
+
+echo "Deploying {{ stack_name }} in {{ aws_region }}"
+aws cloudformation deploy \
+    --region {{ aws_region }} \
+    --stack-name {{ stack_name }} \
+    --template-file "$TEMPLATE_PATH"

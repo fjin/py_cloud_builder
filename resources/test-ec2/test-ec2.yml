@@ -1,0 +1,254 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: test-ec2 deployment template
+Resources:
+  BakerServerLaunchTemplate:
+    Type: 'AWS::EC2::LaunchTemplate'
+    Properties:
+      LaunchTemplateName: !Sub ${AWS::StackName}-LaunchTemplate
+      LaunchTemplateData:
+        KeyName: {{ key_pair }}
+        IamInstanceProfile:
+          Name: {{ iam_profile }}
+        DisableApiTermination: false
+        ImageId: {{ ami_id }}
+        InstanceType: {{ instance_type }}
+        SecurityGroupIds:
+          - !ImportValue
+            'Fn::Sub': '{{ env_server_id }}{{ cfn_network_stack_suffix }}-AppServerSecurityGroupID'
+        MetadataOptions:
+          HttpPutResponseHopLimit: 2
+          HttpTokens: required
+          InstanceMetadataTags: enabled
+        BlockDeviceMappings:
+          - DeviceName: "/dev/sda1"
+            Ebs:
+              DeleteOnTermination: "true"
+              Encrypted: "true"
+              VolumeSize: "{{ app_root_vol_size }}"
+              VolumeType: "gp3"
+        Monitoring:
+          Enabled: {{ cfn_instance_monitoring }}
+        # Some of these tags are mandatory and deployment will fail without them
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: !Sub '${AWS::StackName}-EC2'
+              - Key: ApplicationID
+                Value: {{ applicationid }}
+              - Key: Environment
+                Value: {{ environment_tag }}
+              - Key: Platform
+                Value: linux
+              - Key: CostCentre
+                Value: {{ costcentre }}
+              - Key: Owner
+                Value: {{ owner }}
+              - Key: PowerMgt
+                Value: {{ ec2_power_mgt_tag }}
+              - Key: Snapshot
+                Value: snapw
+              - Key: PatchCycle
+                Value: {{ account_type }}
+              - Key: PatchGroup
+                Value: {{ account_type }}
+              - Key: AppCategory
+                Value: {{ appcat }}
+              - Key: SupportGroup
+                Value: {{ support_group }}
+              - Key: DataClassification
+                Value: {{ data_classification }}
+              - Key: OUName
+                Value: {{ domain_ou }}
+          # Some of these tags are mandatory and deployment will fail without them
+          - ResourceType: volume
+            Tags:
+              - Key: Name
+                Value: !Sub ${AWS::StackName}-instance
+              - Key: ApplicationID
+                Value: {{ applicationid }}
+              - Key: Environment
+                Value: {{ environment_tag }}
+              - Key: Platform
+                Value: linux
+              - Key: CostCentre
+                Value: {{ costcentre }}
+              - Key: Owner
+                Value: {{ owner }}
+              - Key: PowerMgt
+                Value: {{ ec2_power_mgt_tag }}
+              - Key: Snapshot
+                Value: snapw
+              - Key: PatchCycle
+                Value: {{ account_type }}
+              - Key: PatchGroup
+                Value: {{ account_type }}
+              - Key: AppCategory
+                Value: {{ appcat }}
+              - Key: SupportGroup
+                Value: {{ support_group }}
+              - Key: DataClassification
+                Value: {{ data_classification }}
+              - Key: OUName
+                Value: {{ domain_ou }}
+        UserData: !Base64
+          'Fn::Join':
+            - ''
+            - - '#!/bin/bash -xe'
+              - |+
+
+              - >-
+              - exec >> /var/log/user-data.log
+              - |+
+
+              - >-
+              - exec 2>&1
+              - |+
+
+              - >-
+              - echo BEGIN
+              - |+
+
+              - >-
+              - date '+%Y-%m-%d %H:%M:%S'
+              - |+
+
+              - >-
+              - sudo su
+              - |+
+
+              - >-
+              - 'export no_proxy=$no_proxy,s3.ap-southeast-2.amazonaws.com'
+              - |+
+
+              - >-
+              - COMMON_USER_DATA=
+              - common_user_data_script.sh
+              - |+
+
+              - APP_USER_DATA=
+              - app_user_data_script.sh
+              - |+
+
+              - mkdir -p /staging_area
+              - |+
+
+              - chmod 1777 /staging_area
+              - |+
+
+              - touch /staging_area/bootstrap_env.sh
+              - |+
+
+              - chmod +r /staging_area/bootstrap_env.sh
+              - |+
+
+              - cat >> /staging_area/bootstrap_env.sh <<EOF
+              - |+
+
+              - '#!/bin/bash'
+              - |+
+
+              - >-
+              - RESOURCE_NAME=
+              - "AppServerASG"
+              - |+
+
+              - >-
+              - STACK_NAME=
+              - !Sub '${AWS::StackName}'
+              - |+
+
+              - >-
+              - ENV_GROUP=
+              - '{{ env_server_group }}'
+              - |+
+
+              - >-
+              - ENV_ID=
+              - '{{ env_server_id }}'
+              - |+
+
+              - >-
+              - EFS_SHARE_FILE_ID=
+              - '{{ efs_id }}'
+              - |+
+
+              - EOF
+              - |+
+
+              - >-
+              - S3_BUCKET=
+              - '{{ common_bucket_name }}'
+              - |+
+
+              - >-
+                aws s3 cp s3://${S3_BUCKET}/devops/deploy/${COMMON_USER_DATA}
+                /staging_area/${BOOTSTRAP_FILE} --sse aws:kms
+              - |+
+
+              - >-
+                aws s3 cp s3://${S3_BUCKET}/devops/deploy/${APP_USER_DATA}
+                /staging_area/${APP_USER_DATA} --sse aws:kms
+              - |+
+
+              - 'chmod +x /staging_area/${COMMON_USER_DATA}'
+              - |+
+
+              - 'chmod +x /staging_area/${APP_USER_DATA}'
+              - |+
+
+              - >-
+                sudo /staging_area/${COMMON_USER_DATA}
+                /staging_area/bootstrap_env.sh
+              - |+
+
+              - >-
+                sudo /staging_area/${APP_USER_DATA}
+                /staging_area/bootstrap_env.sh
+              - |+
+
+  BakerServerEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      SubnetId: '{{ app_subnet_1 }}'
+      LaunchTemplate:
+        LaunchTemplateId: !Ref BakerServerLaunchTemplate
+        Version: !GetAtt BakerServerLaunchTemplate.LatestVersionNumber
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-EC2'
+        - Key: Owner
+          Value: {{ owner }}
+        - Key: CostCentre
+          Value: {{ costcentre }}
+        - Key: ApplicationID
+          Value: {{ applicationid }}
+        - Key: Environment
+          Value: {{ environment_tag }}
+        - Key: AppCategory
+          Value: {{ appcat }}
+        - Key: SupportGroup
+          Value: {{ support_group }}
+        - Key: PowerMgt
+          Value: {{ ec2_power_mgt_tag }}
+        - Key: Platform
+          Value: linux
+        - Key: DataClassification
+          Value: {{ data_classification }}
+        - Key: OUName
+          Value: {{ domain_ou }}
+
+Outputs:
+  BakerServerEC2IP:
+    Description: BakerServerEC2IP
+    Value: !GetAtt BakerServerEC2.PrivateIp
+    Export:
+      Name: !Sub "${AWS::StackName}-BakerServerEC2IP"
+
+  BakerServerEC2ID:
+    Description: BakerServerEC2ID
+    Value: !GetAtt BakerServerEC2.InstanceId
+    Export:
+      Name: !Sub "${AWS::StackName}-BakerServerEC2ID"
+...

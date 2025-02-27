@@ -1,0 +1,19 @@
+---
+# tasks to create App Stack
+- name: "test-sg"
+  group: "unison"
+  environment: "np"
+  stack: "test-sg-stack"
+  configuration: "test-sg-np"
+
+#- name: "test-ec2"
+#  group: "unison"
+#  environment: "np"
+#  stack: "test-ec2-stack"
+#  configuration: "test-ec2-np"
+#
+#- name: "test-s3"
+#  group: "unison"
+#  environment: "np"
+#  stack: "test-s3-stack"
+#  configuration: "test-s3-np"
