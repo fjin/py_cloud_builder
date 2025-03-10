@@ -1,0 +1,37 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Server Securitygroups
+Resources:
+  SecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enables SSH access from tooling VPC, Front End Access & Ping From MLC Network
+      VpcId: '{{ tooling_vpc_id }}'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: '{{ tooling_vpc_cidr }}'
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: '{{ app_vpc_cidr }}'
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: "127.0.0.0/16"
+        - IpProtocol: icmp
+          FromPort: '-1'
+          ToPort: '-1'
+          CidrIp: "127.0.0.0/16"
+
+Outputs:
+  SecurityGroup:
+    Description: The security group ID to use to connect to Application Server
+    Value: !GetAtt
+      - SecurityGroup
+      - GroupId
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroupID'
+
+...

@@ -1,0 +1,13 @@
+#!/bin/bash
+set -e
+
+echo "Set Default region ..."
+export AWS_DEFAULT_REGION={{ aws_region }}
+
+echo "Deleting CloudFormation Stack: {{ stack_name }}"
+aws cloudformation delete-stack --stack-name {{ stack_name }}
+
+echo "Waiting for stack deletion to complete..."
+aws cloudformation wait stack-delete-complete --stack-name {{ stack_name }}
+
+echo "Stack {{ stack_name }} has been successfully deleted."

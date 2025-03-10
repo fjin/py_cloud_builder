@@ -8,3 +8,4 @@ email-validator
 pydantic
 pyyaml
 jinja2
+boto3
