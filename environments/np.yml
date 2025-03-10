@@ -34,3 +34,7 @@ rds_storage: "512"
 efs_stack_name: "Unison-EFS-Stack"
 rds_port: "1521"
 rds_ssl_port: "8528"
+costcentre: V_Unison
+applicationid: ML0219
+appcat: B
+account_type: nonprod

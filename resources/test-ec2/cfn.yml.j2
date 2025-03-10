@@ -2,7 +2,7 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: test-ec2 deployment template
 Resources:
-  BakerServerLaunchTemplate:
+  EC2ServerLaunchTemplate:
     Type: 'AWS::EC2::LaunchTemplate'
     Properties:
       LaunchTemplateName: !Sub ${AWS::StackName}-LaunchTemplate
@@ -15,7 +15,7 @@ Resources:
         InstanceType: {{ instance_type }}
         SecurityGroupIds:
           - !ImportValue
-            'Fn::Sub': '{{ env_server_id }}{{ cfn_network_stack_suffix }}-AppServerSecurityGroupID'
+            'Fn::Sub': 'test-sg-stack-SecurityGroupID'
         MetadataOptions:
           HttpPutResponseHopLimit: 2
           HttpTokens: required
@@ -25,10 +25,10 @@ Resources:
             Ebs:
               DeleteOnTermination: "true"
               Encrypted: "true"
-              VolumeSize: "{{ app_root_vol_size }}"
+              VolumeSize: "30"
               VolumeType: "gp3"
         Monitoring:
-          Enabled: {{ cfn_instance_monitoring }}
+          Enabled: true
         # Some of these tags are mandatory and deployment will fail without them
         TagSpecifications:
           - ResourceType: instance
@@ -38,7 +38,7 @@ Resources:
               - Key: ApplicationID
                 Value: {{ applicationid }}
               - Key: Environment
-                Value: {{ environment_tag }}
+                Value: {{ account_type }}
               - Key: Platform
                 Value: linux
               - Key: CostCentre
@@ -46,7 +46,7 @@ Resources:
               - Key: Owner
                 Value: {{ owner }}
               - Key: PowerMgt
-                Value: {{ ec2_power_mgt_tag }}
+                Value: {{ power_mgt }}
               - Key: Snapshot
                 Value: snapw
               - Key: PatchCycle
@@ -59,8 +59,6 @@ Resources:
                 Value: {{ support_group }}
               - Key: DataClassification
                 Value: {{ data_classification }}
-              - Key: OUName
-                Value: {{ domain_ou }}
           # Some of these tags are mandatory and deployment will fail without them
           - ResourceType: volume
             Tags:
@@ -69,7 +67,7 @@ Resources:
               - Key: ApplicationID
                 Value: {{ applicationid }}
               - Key: Environment
-                Value: {{ environment_tag }}
+                Value: {{ account_type }}
               - Key: Platform
                 Value: linux
               - Key: CostCentre
@@ -77,7 +75,7 @@ Resources:
               - Key: Owner
                 Value: {{ owner }}
               - Key: PowerMgt
-                Value: {{ ec2_power_mgt_tag }}
+                Value: {{ power_mgt }}
               - Key: Snapshot
                 Value: snapw
               - Key: PatchCycle
@@ -90,8 +88,6 @@ Resources:
                 Value: {{ support_group }}
               - Key: DataClassification
                 Value: {{ data_classification }}
-              - Key: OUName
-                Value: {{ domain_ou }}
         UserData: !Base64
           'Fn::Join':
             - ''
@@ -137,84 +133,13 @@ Resources:
               - chmod 1777 /staging_area
               - |+
 
-              - touch /staging_area/bootstrap_env.sh
-              - |+
-
-              - chmod +r /staging_area/bootstrap_env.sh
-              - |+
-
-              - cat >> /staging_area/bootstrap_env.sh <<EOF
-              - |+
-
-              - '#!/bin/bash'
-              - |+
-
-              - >-
-              - RESOURCE_NAME=
-              - "AppServerASG"
-              - |+
-
-              - >-
-              - STACK_NAME=
-              - !Sub '${AWS::StackName}'
-              - |+
-
-              - >-
-              - ENV_GROUP=
-              - '{{ env_server_group }}'
-              - |+
-
-              - >-
-              - ENV_ID=
-              - '{{ env_server_id }}'
-              - |+
-
-              - >-
-              - EFS_SHARE_FILE_ID=
-              - '{{ efs_id }}'
-              - |+
-
-              - EOF
-              - |+
-
-              - >-
-              - S3_BUCKET=
-              - '{{ common_bucket_name }}'
-              - |+
-
-              - >-
-                aws s3 cp s3://${S3_BUCKET}/devops/deploy/${COMMON_USER_DATA}
-                /staging_area/${BOOTSTRAP_FILE} --sse aws:kms
-              - |+
-
-              - >-
-                aws s3 cp s3://${S3_BUCKET}/devops/deploy/${APP_USER_DATA}
-                /staging_area/${APP_USER_DATA} --sse aws:kms
-              - |+
-
-              - 'chmod +x /staging_area/${COMMON_USER_DATA}'
-              - |+
-
-              - 'chmod +x /staging_area/${APP_USER_DATA}'
-              - |+
-
-              - >-
-                sudo /staging_area/${COMMON_USER_DATA}
-                /staging_area/bootstrap_env.sh
-              - |+
-
-              - >-
-                sudo /staging_area/${APP_USER_DATA}
-                /staging_area/bootstrap_env.sh
-              - |+
-
-  BakerServerEC2:
+  EC2ServerEC2:
     Type: AWS::EC2::Instance
     Properties:
       SubnetId: '{{ app_subnet_1 }}'
       LaunchTemplate:
-        LaunchTemplateId: !Ref BakerServerLaunchTemplate
-        Version: !GetAtt BakerServerLaunchTemplate.LatestVersionNumber
+        LaunchTemplateId: !Ref EC2ServerLaunchTemplate
+        Version: !GetAtt EC2ServerLaunchTemplate.LatestVersionNumber
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-EC2'
@@ -225,30 +150,28 @@ Resources:
         - Key: ApplicationID
           Value: {{ applicationid }}
         - Key: Environment
-          Value: {{ environment_tag }}
+          Value: {{ account_type }}
         - Key: AppCategory
           Value: {{ appcat }}
         - Key: SupportGroup
           Value: {{ support_group }}
         - Key: PowerMgt
-          Value: {{ ec2_power_mgt_tag }}
+          Value: {{ power_mgt }}
         - Key: Platform
           Value: linux
         - Key: DataClassification
           Value: {{ data_classification }}
-        - Key: OUName
-          Value: {{ domain_ou }}
 
 Outputs:
-  BakerServerEC2IP:
-    Description: BakerServerEC2IP
-    Value: !GetAtt BakerServerEC2.PrivateIp
+  EC2ServerEC2IP:
+    Description: EC2ServerEC2IP
+    Value: !GetAtt EC2ServerEC2.PrivateIp
     Export:
-      Name: !Sub "${AWS::StackName}-BakerServerEC2IP"
+      Name: !Sub "${AWS::StackName}-EC2ServerEC2IP"
 
-  BakerServerEC2ID:
-    Description: BakerServerEC2ID
-    Value: !GetAtt BakerServerEC2.InstanceId
+  EC2ServerEC2ID:
+    Description: EC2ServerEC2ID
+    Value: !GetAtt EC2ServerEC2.InstanceId
     Export:
-      Name: !Sub "${AWS::StackName}-BakerServerEC2ID"
+      Name: !Sub "${AWS::StackName}-EC2ServerEC2ID"
 ...

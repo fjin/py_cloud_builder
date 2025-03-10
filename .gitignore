@@ -1,5 +1,6 @@
 .idea
-**/deploy.sh
+**/deploy_cfn.sh
+**/deploy_tf.sh
 **/cfn.yml
 test.db
 logs
