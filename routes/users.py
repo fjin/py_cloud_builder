@@ -8,6 +8,7 @@ from typing import List
 
 router = APIRouter()
 
+
 @router.post("/", response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
@@ -23,6 +24,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     return new_user
+
 
 @router.get("/", response_model=List[UserResponse])
 def get_users(db: Session = Depends(get_db)):

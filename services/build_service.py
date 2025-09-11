@@ -1,189 +1,176 @@
 import os
-import subprocess
-import yaml
-from jinja2 import Environment, FileSystemLoader
-import boto3
-import botocore.exceptions
+import uuid
+import logging
+from sqlalchemy.orm import Session
+from services.base_service import BaseService
+from models import Application
+from schemas import BuildResponse
 
-def flatten_list(nested_list):
-    """Recursively flattens a nested list into a single-level list."""
-    flat_list = []
-    for element in nested_list:
-        if isinstance(element, list):
-            flat_list.extend(flatten_list(element))
-        else:
-            flat_list.append(element)
-    return flat_list
-
-def call_subprocess(resource_name, script_path) -> dict:
-    results = []
-    if os.path.exists(script_path):
-        try:
-            process = subprocess.run(["bash", script_path], capture_output=True, text=True)
-            if process.returncode == 0:
-                results.append({"resource": resource_name, "status": "success", "message": process.stdout})
-            else:
-                results.append({"resource": resource_name, "status": "error", "message": process.stderr})
-        except Exception as e:
-            print("error")
-            results.append({"resource": resource_name, "status": "error", "message": str(e)})
-    return results
+logger = logging.getLogger(__name__)
 
 
-def load_yaml(file_path):
-    if os.path.exists(file_path):
-        with open(file_path, "r") as file:
-            return yaml.safe_load(file)
-    return {}
+class BuildService(BaseService):
 
-
-def merge_envs(global_env, component_env):
-    return {**global_env, **component_env}
-
-
-def render_template(template_path, context):
-    env = Environment(loader=FileSystemLoader(os.path.dirname(template_path)))
-    template = env.get_template(os.path.basename(template_path))
-    return template.render(context)
-
-
-class BuildService:
-    TASKS_FOLDER = "tasks"
-    RESOURCES_FOLDER = "resources"
-    ENVIRONMENTS_FOLDER = "environments"
-
-    def load_config(self, task) -> dict:
-        resource_name = task["resource"]
-        environment_name = task["environment"]
-
-        global_env_path = os.path.join(self.ENVIRONMENTS_FOLDER, f"{environment_name}.yml")
-        component_env_path = os.path.join(self.ENVIRONMENTS_FOLDER, resource_name, f"{environment_name}.yml")
-
-        global_env = load_yaml(global_env_path)
-        component_env = load_yaml(component_env_path)
-        merged_env = merge_envs(global_env, component_env)
-        return merged_env
-
-    def run_step(self, resource_name, step, envs) -> dict:
-        results = []
-        action_script = step["action_script"]
-        action_type = step["type"]
-
+    def run_step(self, resource_name: str, step: dict, envs: dict, db: Session, build_id: str) -> dict:
+        logger.debug("Running step for resource: %s", resource_name)
+        action_script = step.get("action_script")
+        action_type = step.get("type")
         resource_path = os.path.join(self.RESOURCES_FOLDER, resource_name)
+        script_template_path = os.path.join(resource_path, f"{action_script}.j2")
+        rendered_script_path = os.path.join(resource_path, action_script)
 
-        action_script_template_name = action_script + ".j2"
-        action_script_template_path = os.path.join(resource_path, action_script_template_name)
-        rendered_action_script_path = os.path.join(resource_path, action_script)
-
-        if os.path.exists(action_script_template_path):
-            rendered_action_script = render_template(action_script_template_path, envs)
-            with open(rendered_action_script_path, "w") as f:
-                f.write(rendered_action_script)
-            os.chmod(rendered_action_script_path, 0o755)
-
-        if action_type != "shell":
-            action_template = step["action_template"]
-            action_template_name = action_template + ".j2"
-            action_template_path = os.path.join(resource_path, action_template_name)
-            rendered_action_template_path = os.path.join(resource_path, action_template)
-
-            if os.path.exists(action_template_path):
-                rendered_template = render_template(action_template_path, envs)
-                with open(rendered_action_template_path, "w") as f:
-                    f.write(rendered_template)
-
-        result = call_subprocess(resource_name, rendered_action_script_path)
-        results.append(result)
-        return results
-
-    def delete_stack(stack_name: str) -> dict:
-        cf_client = boto3.client('cloudformation')
         try:
-            response = cf_client.delete_stack(StackName=stack_name)
-            print(f"Deletion initiated for stack: {stack_name}")
-            return response
-        except botocore.exceptions.ClientError as e:
-            print(f"Error deleting stack {stack_name}: {e}")
-            return None
+            logger.debug(f"Loading script_template_path: '{script_template_path}'")
+            if os.path.exists(script_template_path):
+                rendered_script = self.render_template(script_template_path, envs)
+                with open(rendered_script_path, "w") as f:
+                    f.write(rendered_script)
+                os.chmod(rendered_script_path, 0o755)
+            else:
+                logger.error("Template path '%s' does not exist after writing for step '%s'.", script_template_path, step.get("action_script"))
+                raise RuntimeError(f"Failed to create the rendered template at '{script_template_path}'.")
 
-    def wait_for_stack_deletion(stack_name: str) -> dict:
-        cf_client = boto3.client('cloudformation')
-        waiter = cf_client.get_waiter('stack_delete_complete')
-        try:
-            waiter.wait(StackName=stack_name)
-            print(f"Stack {stack_name} deleted successfully.")
-            return {"status": "success", "message": f"Stack {stack_name} deleted successfully.", "stack_name": {stack_name}, "results": ["Stack {stack_name} deleted successfully."]}
+            if action_type != "shell":
+                action_template = step.get("action_template")
+                if action_template:
+                    template_path = os.path.join(resource_path, f"{action_template}.j2")
+                    rendered_template_path = os.path.join(resource_path, action_template)
+                    if os.path.exists(template_path):
+                        rendered_template = self.render_template(template_path, envs)
+                        with open(rendered_template_path, "w") as f:
+                            f.write(rendered_template)
+                    else:
+                        logger.error("Template path '%s' does not exist after writing for step '%s'.", template_path, step.get("action_script"))
+                        raise RuntimeError(f"Failed to create the rendered template at '{template_path}'.")
+
         except Exception as e:
-            print(f"Error waiting for stack deletion: {e}")
-            return {"status": "error", "message": f"Stack {stack_name} cannot be deleted successfully.", "stack_name": {stack_name}, "results": ["Stack {stack_name} cannot be deleted successfully."]}
+            logger.error("Template rendering failed for resource '%s': %s", resource_name, str(e))
+            raise RuntimeError(f"Template rendering failed for {resource_name}: {str(e)}") from e
 
-    def destroy_task(self, task, envs) -> dict:
+        result = self.call_subprocess(resource_name, rendered_script_path, build_id)
+        logger.debug("Step result for resource '%s': %s", resource_name, result)
+
+        # Status update should only happen when execution reaches this point
+        self.update_status(resource_name, step.get("name"), result, db, build_id)
+        return result
+
+    def execute_task(self, task: dict, action: str, db: Session, build_id: str) -> list:
         results = []
-        print("==============")
-        print(task["name"], envs.get("stack_name"))
-        result = self.delete_stack(self, envs.get("stack_name"))
-        results.append(result)
-        result = self.wait_for_stack_deletion(envs.get("stack_name"))
-        results.append(result)
+        task_name = task.get("name")
+        resource_name = task.get("resource")
+        steps = task.get("steps", [])
+        logger.info("Executing task '%s' for resource: %s (action: %s)", task_name, resource_name, action)
+        envs = self.load_config(task)
 
-        return results
+        logger.debug(f"Finish loading envs ... '{envs}'")
 
+        if not envs:  # Check if envs is empty
+            logger.error("Failed to load configuration for task '%s' (resource: %s). Aborting task execution.", task_name, resource_name)
+            return []  # Return an empty list if configuration loading failed
 
-    def execute_task(self, task, action) -> dict:
-
-        results = []
-
-        task_name = task["name"]
-        resource_name = task["resource"]
-        environment_name = task["environment"]
-        group_name = task["group"]
-        type_name = task["type"]
-        account_name = task["account"]
-        configuration = task["configuration"]
-        steps = task["steps"]
-
-        print(f"task: {task_name} {resource_name} {environment_name} {group_name} {type_name} {account_name} {configuration} {steps}")
-
-        merged_env = self.load_config(task)
-        if action == "unbuild":
-            return self.destroy_task(task, merged_env)
-
+        logger.debug("Start executing steps ...")
         for step in steps:
-            result = self.run_step(resource_name, step, merged_env)
-            results.append(result)
+            try:
+                result = self.run_step(resource_name, step, envs, db, build_id)
+                results.append(result)
+            except Exception as e:
+                logger.error("Step '%s' failed with error: %s", step.get("name"), str(e))
+                return []  # Return an empty list if any step fails
 
-        return results
+        return self.flatten_list(results)
 
-    def build(self, component: str) -> dict:
+    def build(self, component: str, db: Session) -> BuildResponse:
+        active_build = db.query(Application).filter(
+            Application.application_name == component,
+            Application.status == "started"
+        ).first()
+        if active_build:
+            logger.error("Build already in progress for component '%s' (UUID: %s)", component, active_build.uuid)
+            return BuildResponse(
+                status=BaseService.FAILED_STATE,
+                message=f"Build for component '{component}' is already in progress.",
+                component=component,
+                uuid="",  # instead of None
+                results=[]
+            )
+
         yaml_path = os.path.join(self.TASKS_FOLDER, f"{component}.yml")
-
-        tasks = load_yaml(yaml_path)
-
+        tasks = self.load_yaml(yaml_path)
         if not tasks:
-            return {"status": "error", "message": f"Task file {component}.yml not found", "component": component, "results": []}
+            logger.error("Task file '%s.yml' not found.", component)
+            return BuildResponse(
+                status=BaseService.FAILED_STATE,
+                message=f"Task file {component}.yml not found",
+                component=component,
+                uuid="",  # instead of None
+                results=[]
+            )
+
+        build_id = str(uuid.uuid4())
+        logger.info("Starting build for '%s' with build_id: %s", component, build_id)
+
+        # Create the application record but do not commit yet
+        new_app = Application(
+            uuid=build_id,
+            application_name=component,
+            action="build",
+            status="started"
+        )
+        db.add(new_app)
 
         results = []
+        overall_error = False
 
-        for task in tasks:
-            result = self.execute_task(task, "build")
-            print(result)
-            results.append(result)
+        try:
+            for task in tasks:
+                task_results = self.execute_task(task, "build", db, build_id)
 
-        results = flatten_list(results)
-        return {"status": "success", "message": "Build process completed", "component": component, "results": results}
+                if not task_results:
+                    logger.error("Task execution failed for task '%s'. No results returned.", task.get("name"))
+                    new_app.status = BaseService.FAILED_STATE
+                    new_app.tasks_built = [task.get("name")]
+                    db.commit()
+                    return BuildResponse(
+                        status=BaseService.FAILED_STATE,
+                        message=f"Task execution failed for task {task.get('name')}. No results returned",
+                        component=component,
+                        uuid=build_id,
+                        results=[]
+                    )
 
-    def unbuild(self, component: str) -> dict:
-        yaml_path = os.path.join(self.TASKS_FOLDER, f"{component}.yml")
-        tasks = load_yaml(yaml_path)
+                if any(r.get("status") == BaseService.FAILED_STATE for r in task_results if isinstance(r, dict)):
+                    overall_error = True
+                results.append(task_results)
 
-        if not tasks:
-            return {"status": "error", "message": f"Task file {component}.yml not found", "component": component, "results": []}
+            # If all tasks pass, update the database with a success status
+            new_app.status = BaseService.SUCCESS_STATE if not overall_error else BaseService.FAILED_STATE
+            new_app.tasks_built = [task.get("name") for task in tasks]
+            db.commit()
 
-        results = []
+        except RuntimeError as e:
+            logger.error("Build process aborted due to error: %s", str(e))
+            db.rollback()  # Undo any changes since a commit has not happened yet
+            return BuildResponse(
+                status=BaseService.FAILED_STATE,
+                message=f"{BaseService.BUILD_ERROR_MSG}: {str(e)}",
+                component=component,
+                uuid=build_id,
+                results=[]
+            )
 
-        for task in tasks:
-            result = self.execute_task(task, "unbuild")
-            results.append(result)
+        results = self.flatten_list(results)
+        logger.info("Build for '%s' completed with status: %s", component, new_app.status)
 
-        results = flatten_list(results)
-        return {"status": "success", "message": "Unbuild process completed", "component": component, "results": results}
+        if not overall_error:
+            state = BaseService.SUCCESS_STATE
+            message = BaseService.BUILD_SUCCESS_MSG
+        else:
+            state = BaseService.FAILED_STATE
+            message = BaseService.BUILD_ERROR_MSG
+        return BuildResponse(
+            status=state,
+            message=message,
+            component=component,
+            uuid=build_id,
+            results=results
+        )

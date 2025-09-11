@@ -1,8 +1,13 @@
 .idea
 **/deploy_cfn.sh
 **/deploy_tf.sh
+**/destroy.sh
 **/status.sh
 **/cfn.yml
 test.db
 logs
+app.log
 __pycache__
+resources
+environments
+tasks

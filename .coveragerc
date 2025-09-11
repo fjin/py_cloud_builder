@@ -1,0 +1,4 @@
+[run]
+source = .
+omit =
+    */tmp*.j2

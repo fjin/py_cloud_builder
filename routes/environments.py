@@ -7,6 +7,7 @@ from typing import List
 
 router = APIRouter()
 
+
 # Create a new environment
 @router.post("/", response_model=EnvironmentResponse)
 def create_environment(env: EnvironmentCreate, db: Session = Depends(get_db)):
@@ -19,6 +20,7 @@ def create_environment(env: EnvironmentCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_env)
     return new_env
+
 
 # Get all environments
 @router.get("/", response_model=List[EnvironmentResponse])

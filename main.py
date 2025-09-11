@@ -1,6 +1,13 @@
 from fastapi import FastAPI
-from routes import users, items, environments, resources, build, unbuild
+from routes import users, items, environments, resources, build, unbuild, status
 from database import Base, engine
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG,  # Set the minimum level to DEBUG; change to INFO or ERROR as needed.
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
 
 app = FastAPI(title="My API Server", version="1.0")
 
@@ -19,6 +26,9 @@ app.include_router(resources.router, prefix="/resources", tags=["Resources"])
 app.include_router(build.router, prefix="/build", tags=["Build"])
 
 app.include_router(unbuild.router, prefix="/unbuild", tags=["unbuild"])
+
+app.include_router(status.router, prefix="/status", tags=["status"])
+
 
 # Root endpoint
 @app.get("/")
