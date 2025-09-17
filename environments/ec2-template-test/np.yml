@@ -1,0 +1,4 @@
+stack_name: "my-test-ec2-stack"
+instance_ami: "ami-001ded8a0c1de5db6"
+instance_type: "t3.micro"
+security_group_id: "sg-0044d4e496bc9699f"

@@ -13,5 +13,5 @@ def trigger_unbuild(request: UnBuildRequest, db: Session = Depends(get_db)):
     if not request.component:
         raise HTTPException(status_code=400, detail="Component name is required")
 
-    result = unbuild_service.unbuild(request.component, request.db_flag, db)
+    result = unbuild_service.unbuild(request.component, request.task_path, request.db_flag, db)
     return result

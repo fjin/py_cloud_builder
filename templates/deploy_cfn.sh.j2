@@ -1,0 +1,15 @@
+#!/bin/bash
+set -e
+
+echo "Set Default region {{ aws_region }}"
+export AWS_DEFAULT_REGION={{ aws_region }}
+
+SCRIPT_DIR=$(dirname "$0")
+TEMPLATE_PATH="$SCRIPT_DIR/cfn.yml"
+
+echo "Deploying {{ stack_name }} in {{ aws_region }}"
+aws cloudformation deploy \
+  --stack-name {{ stack_name }} \
+  --template-file ${TEMPLATE_PATH} \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --no-fail-on-empty-changeset

@@ -1,0 +1,18 @@
+#!/bin/bash
+set -euo pipefail
+
+STACK_NAME={{ stack_name }}
+OUTPUT_KEY="EC2IP"
+
+# Get IP from CloudFormation stack outputs
+EC2_IP=$(aws cloudformation describe-stacks \
+    --stack-name "$STACK_NAME" \
+    --query "Stacks[0].Outputs[?OutputKey=='$OUTPUT_KEY'].OutputValue" \
+    --output text)
+
+if [[ -z "$EC2_IP" ]]; then
+  echo "❌ Could not retrieve EC2IP from stack $STACK_NAME"
+  exit 1
+fi
+
+echo "✅ Found EC2 instance IP: $EC2_IP"

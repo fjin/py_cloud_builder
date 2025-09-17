@@ -53,6 +53,9 @@ class ResourceResult(BaseModel):
 
 class BuildRequest(BaseModel):
     component: str
+    env_path: str
+    resource_path: str
+    task_path: str
     db_flag: bool = False
 
 
@@ -66,6 +69,7 @@ class BuildResponse(BaseModel):
 
 class UnBuildRequest(BaseModel):
     component: str
+    task_path: str
     db_flag: bool = False
 
 

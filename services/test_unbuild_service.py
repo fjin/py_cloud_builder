@@ -2,6 +2,7 @@ import unittest
 import os
 import logging
 from datetime import datetime
+
 from services.unbuild_service import UnbuildService
 from models import Application, Step
 
@@ -195,7 +196,7 @@ class TestUnbuildService(unittest.TestCase):
         app.timestamp = datetime.now()
         self.db.applications.append(app)
 
-        result = self.service.unbuild("test-infra", self.db)
+        result = self.service.unbuild("test-infra", "", False, self.db)
         self.assertEqual(result["status"], "error")
         self.assertEqual(result["uuid"], "active-unbuild-uuid")
         self.assertEqual(result["message"], "An unbuild for component 'test-infra' is already in progress.")

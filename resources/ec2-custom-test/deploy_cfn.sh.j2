@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e
+
+echo "Set Default region {{ aws_region }}"
+export AWS_DEFAULT_REGION={{ aws_region }}
+
+SCRIPT_DIR=$(dirname "$0")
+TEMPLATE_PATH="$SCRIPT_DIR/cfn.yml"
+
+ec2_ami=$(aws ssm get-parameter --name /golden-ami/ecsrhel8/latest --query "Parameter.Value" --output text)
+
+echo "Deploying {{ stack_name }} in {{ aws_region }}"
+aws cloudformation deploy \
+  --stack-name {{ stack_name }} \
+  --template-file ${TEMPLATE_PATH} \
+  --parameter-overrides EC2AMI="${ec2_ami}" \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --no-fail-on-empty-changeset

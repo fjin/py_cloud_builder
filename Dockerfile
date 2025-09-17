@@ -1,9 +1,11 @@
 # Use an official Python runtime as a parent image
-ARG DOCKER_HUB_URL
+ARG DOCKER_HUB_URL=dockerhub.itt.aws.odev.com.au
 
 FROM ${DOCKER_HUB_URL}/python:3.12.9-slim
 
 ARG NEXUS_URL
+# Redeclare after FROM for use later in ENV/RUN
+ARG DOCKER_HUB_URL
 
 # Set environment variables to prevent Python from writing pyc files
 # and to enable output buffering for easier logging.

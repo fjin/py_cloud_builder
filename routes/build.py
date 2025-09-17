@@ -15,7 +15,7 @@ def trigger_build(request: BuildRequest, db: Session = Depends(get_db)):
     if not request.component:
         raise HTTPException(status_code=400, detail="Component name is required")
     try:
-        result = build_service.build(request.component, db)
+        result = build_service.build(request.component, request.env_path, request.resource_path, request.task_path, db)
         if not isinstance(result, BuildResponse):
             raise HTTPException(status_code=500, detail="Invalid build response")
         return result

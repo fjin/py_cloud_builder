@@ -13,46 +13,111 @@ class BuildService(BaseService):
 
     def run_step(self, resource_name: str, step: dict, envs: dict, db: Session, build_id: str) -> dict:
         logger.debug("Running step for resource: %s", resource_name)
-        action_script = step.get("action_script")
         action_type = step.get("type")
-        resource_path = os.path.join(self.RESOURCES_FOLDER, resource_name)
-        script_template_path = os.path.join(resource_path, f"{action_script}.j2")
-        rendered_script_path = os.path.join(resource_path, action_script)
+        resource_path = os.path.expanduser(os.path.join(self.RESOURCES_FOLDER, resource_name))
+
+        if action_type == 'cloudformation':
+            action_script = self.DEPLOY_CFN_SCRIPT
+            action_template = self.DEPLOY_CFN_TEMPLATE
+            action_script_path = os.path.expanduser(os.path.join(self.TEMPLATES_FOLDER, f"{action_script}.j2"))
+            action_rendered_script_path = os.path.expanduser(os.path.join(resource_path, action_script))
+        elif action_type == 'terraform':
+            action_script = self.DEPLOY_TERRAFORM_SCRIPT
+            action_template = self.DEPLOY_TERRAFORM_TEMPLATE
+            action_script_path = os.path.expanduser(os.path.join(self.TEMPLATES_FOLDER, f"{action_script}.j2"))
+            action_rendered_script_path = os.path.expanduser(os.path.join(resource_path, action_script))
+        elif action_type == 'custom-cloudformation':
+            action_script = step.get("action_script")
+            action_template = self.DEPLOY_CFN_TEMPLATE
+            action_script_path = os.path.expanduser(os.path.join(resource_path, f"{action_script}.j2"))
+            action_rendered_script_path = os.path.expanduser(os.path.join(resource_path, action_script))
+        elif action_type == 'custom-terraform':
+            action_script = step.get("action_script")
+            action_template = self.DEPLOY_TERRAFORM_TEMPLATE
+            action_script_path = os.path.expanduser(os.path.join(resource_path, f"{action_script}.j2"))
+            action_rendered_script_path = os.path.expanduser(os.path.join(resource_path, action_script))
+
+        else:
+            action_script = step.get("action_script")
+            action_template = step.get("action_template")
+            action_script_path = os.path.expanduser(os.path.join(resource_path, f"{action_script}.j2"))
+            action_rendered_script_path = os.path.expanduser(os.path.join(resource_path, action_script))
+
+        logger.debug(f"Determined script_template_path: '{action_script_path}'")
+        logger.debug(f"Determined rendered_script_path: '{action_rendered_script_path}'")
 
         try:
-            logger.debug(f"Loading script_template_path: '{script_template_path}'")
-            if os.path.exists(script_template_path):
-                rendered_script = self.render_template(script_template_path, envs)
-                with open(rendered_script_path, "w") as f:
+            logger.debug(f"Loading action_script_path: '{action_script_path}'")
+            if os.path.exists(action_script_path):
+                rendered_script = self.render_template(action_script_path, envs)
+                with open(action_rendered_script_path, "w") as f:
                     f.write(rendered_script)
-                os.chmod(rendered_script_path, 0o755)
+                os.chmod(action_rendered_script_path, 0o755)
             else:
-                logger.error("Template path '%s' does not exist after writing for step '%s'.", script_template_path, step.get("action_script"))
-                raise RuntimeError(f"Failed to create the rendered template at '{script_template_path}'.")
+                logger.error("Template path '%s' does not exist after writing for step '%s'.", action_script_path,
+                             step.get("action_script"))
+                raise RuntimeError(f"Failed to create the rendered template at '{action_rendered_script_path}'.")
 
-            if action_type != "shell":
-                action_template = step.get("action_template")
+            if action_type in {"cloudformation", "terraform", "custom-cloudformation", "custom-terraform"}:
+                logger.debug("No additional template rendering required for action type: %s", action_type)
+                use_template = step.get("use_template", False)
+                resource_type = step.get("resource")
+                resource_config = step.get("action_config")
+                logger.debug("use_template: %s", use_template)
                 if action_template:
-                    template_path = os.path.join(resource_path, f"{action_template}.j2")
-                    rendered_template_path = os.path.join(resource_path, action_template)
-                    if os.path.exists(template_path):
-                        rendered_template = self.render_template(template_path, envs)
-                        with open(rendered_template_path, "w") as f:
-                            f.write(rendered_template)
-                    else:
-                        logger.error("Template path '%s' does not exist after writing for step '%s'.", template_path, step.get("action_script"))
-                        raise RuntimeError(f"Failed to create the rendered template at '{template_path}'.")
+                    self.render_cloud_template(use_template, action_type, resource_type, resource_config, resource_path, action_template, envs)
 
         except Exception as e:
             logger.error("Template rendering failed for resource '%s': %s", resource_name, str(e))
             raise RuntimeError(f"Template rendering failed for {resource_name}: {str(e)}") from e
 
-        result = self.call_subprocess(resource_name, rendered_script_path, build_id)
+        logger.debug("Executing script for resource '%s': %s", resource_name, action_rendered_script_path)
+        result = self.call_subprocess(resource_name, action_rendered_script_path, build_id)
         logger.debug("Step result for resource '%s': %s", resource_name, result)
 
         # Status update should only happen when execution reaches this point
         self.update_status(resource_name, step.get("name"), result, db, build_id)
         return result
+
+    # Renders cloudformation or terraform templates based on the provided parameters
+    # If the value of use_template is True, it will look for predefined templates in the TEMPLATES_FOLDER
+    # otherwise, it will look for the template in the resource_path
+    # The rendered template will be saved in the resource_path with the name action_template
+    # envs is a dictionary containing environment variables to be used in the template rendering
+    def render_cloud_template(self, use_template: bool, action_type: str, resource_type: str, resource_config: str, resource_path: str, action_template: str, envs: dict) -> None:
+        try:
+            if use_template:
+                if action_type in {"cloudformation", "terraform"}:
+                    template_path = os.path.join(self.TEMPLATES_FOLDER, f"{action_type}", f"{resource_type}", f"{resource_type}.yml.j2")
+                    resource_configs_path = os.path.join(resource_path, f"{resource_config}")
+
+                    if not os.path.exists(resource_configs_path):
+                        logger.error("Resource config path '%s' does not exist.", resource_configs_path)
+                        raise RuntimeError(f"Resource config path '{resource_configs_path}' does not exist.")
+
+                    if not os.path.exists(template_path):
+                        logger.error("Template path '%s' does not exist.", template_path)
+                        raise RuntimeError(f"Template path '{template_path}' does not exist.")
+
+                    resource_envs = self.load_yaml(resource_configs_path)
+                    logger.info("resource_envs: %s", resource_envs)
+                    envs = self.merge_envs(envs, resource_envs)
+                else:
+                    template_path = os.path.join(resource_path, f"{action_template}.j2")
+            else:
+                template_path = os.path.join(resource_path, f"{action_template}.j2")
+
+            rendered_template_path = os.path.join(resource_path, action_template)
+            if os.path.exists(template_path):
+                rendered_template = self.render_template(template_path, envs)
+                with open(rendered_template_path, "w") as f:
+                    f.write(rendered_template)
+            else:
+                logger.error("Template path '%s' does not exist for render type '%s'.", template_path, use_template)
+                raise RuntimeError(f"Failed to create the rendered template at '{rendered_template_path}'.")
+        except Exception as e:
+            logger.error("Template rendering failed for render type '%s': %s", use_template, str(e))
+            raise RuntimeError(f"Template rendering failed for {use_template}: {str(e)}") from e
 
     def execute_task(self, task: dict, action: str, db: Session, build_id: str) -> list:
         results = []
@@ -65,7 +130,8 @@ class BuildService(BaseService):
         logger.debug(f"Finish loading envs ... '{envs}'")
 
         if not envs:  # Check if envs is empty
-            logger.error("Failed to load configuration for task '%s' (resource: %s). Aborting task execution.", task_name, resource_name)
+            logger.error("Failed to load configuration for task '%s' (resource: %s). Aborting task execution.",
+                         task_name, resource_name)
             return []  # Return an empty list if configuration loading failed
 
         logger.debug("Start executing steps ...")
@@ -79,7 +145,22 @@ class BuildService(BaseService):
 
         return self.flatten_list(results)
 
-    def build(self, component: str, db: Session) -> BuildResponse:
+    def build(self, component: str, env_path: str, resource_path: str, task_path: str, db: Session) -> BuildResponse:
+        # Validate input paths
+        if not env_path or not resource_path or not task_path:
+            raise ValueError("env_path, resource_path, and task_path must not be None or empty.")
+        if not self.ENVIRONMENTS_FOLDER or not self.RESOURCES_FOLDER or not self.TASKS_FOLDER:
+            raise ValueError("Service folders (ENVIRONMENTS_FOLDER, RESOURCES_FOLDER, TASKS_FOLDER) must be initialized.")
+
+        # Prepend the new paths to the existing paths
+        self.ENVIRONMENTS_FOLDER = os.path.expanduser(os.path.join(env_path, BaseService.ENVIRONMENTS_FOLDER))
+        self.RESOURCES_FOLDER = os.path.expanduser(os.path.join(resource_path, BaseService.RESOURCES_FOLDER))
+        self.TASKS_FOLDER = os.path.expanduser(os.path.join(task_path, BaseService.TASKS_FOLDER))
+
+        logger.debug("Environments folder set to: %s", self.ENVIRONMENTS_FOLDER)
+        logger.debug("Resources folder set to: %s", self.RESOURCES_FOLDER)
+        logger.debug("Tasks folder set to: %s", self.TASKS_FOLDER)
+
         active_build = db.query(Application).filter(
             Application.application_name == component,
             Application.status == "started"

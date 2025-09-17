@@ -15,13 +15,20 @@ class BaseService:
     TASKS_FOLDER = "tasks"
     RESOURCES_FOLDER = "resources"
     ENVIRONMENTS_FOLDER = "environments"
-
+    TEMPLATES_FOLDER = "templates"
     BUILD_ERROR_MSG = "Build process failed"
     BUILD_SUCCESS_MSG = "Build process completed successfully"
     UNBUILD_ERROR_MSG = "Unbuild process failed"
     UNBUILD_SUCCESS_MSG = "Unbuild process completed successfully"
     SUCCESS_STATE = "success"
     FAILED_STATE = "error"
+    DEPLOY_CFN_TEMPLATE = "cfn.yml"
+    DEPLOY_TERRAFORM_TEMPLATE = "resources.tf"
+    DEPLOY_CFN_SCRIPT = "deploy_cfn.sh"
+    DEPLOY_TERRAFORM_SCRIPT = "deploy_terraform.sh"
+    DESTROY_CFN_SCRIPT = "destroy_cfn.sh"
+    DESTROY_TERRAFORM_SCRIPT = "destroy_terraform.sh"
+    CUSTOM_DESTROY_SCRIPT = "destroy.sh"
 
     @staticmethod
     def flatten_list(nested_list):
@@ -35,18 +42,20 @@ class BaseService:
 
     @staticmethod
     def load_yaml(file_path):
-        logger.debug("Loading YAML file: %s", file_path)
-        if os.path.exists(file_path):
-            with open(file_path, "r") as file:
+        # Expand ~ to the full home directory path
+        expanded_path = os.path.expanduser(file_path)
+        logger.debug("Loading YAML file: %s", expanded_path)
+        if os.path.exists(expanded_path):
+            with open(expanded_path, "r") as file:
                 try:
                     data = yaml.safe_load(file)
-                    logger.debug("YAML file %s loaded successfully.", file_path)
+                    logger.debug("YAML file %s loaded successfully.", expanded_path)
                     return data
                 except Exception as e:
-                    logger.error("Error parsing YAML file %s: %s", file_path, e)
+                    logger.error("Error parsing YAML file %s: %s", expanded_path, e)
                     return {}
         else:
-            logger.warning("YAML file %s does not exist.", file_path)
+            logger.warning("YAML file %s does not exist.", expanded_path)
         return {}
 
     @staticmethod
@@ -143,6 +152,12 @@ class BaseService:
         environment_name = task.get("environment")
         global_env_path = os.path.join(self.ENVIRONMENTS_FOLDER, f"{environment_name}.yml")
         component_env_path = os.path.join(self.ENVIRONMENTS_FOLDER, resource_name, f"{environment_name}.yml")
+
+        global_env_path = os.path.expanduser(global_env_path)
+        component_env_path = os.path.expanduser(component_env_path)
+
+        logger.debug("global_env_path: %s", global_env_path)
+        logger.debug("component_env_path: %s", component_env_path)
 
         logger.debug("Loading config for resource: %s, environment: %s", resource_name, environment_name)
 

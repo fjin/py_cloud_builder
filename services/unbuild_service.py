@@ -12,15 +12,23 @@ logger = logging.getLogger(__name__)
 
 class UnbuildService(BaseService):
 
-    def destroy_task(self, task: dict, db: Session, build_id: str) -> dict:
-        resource = task.get("resource")
-        resource_path = os.path.join(self.RESOURCES_FOLDER, resource)
-        destroy_template_path = os.path.join(resource_path, "destroy.sh.j2")
-        destroy_script_path = os.path.join(resource_path, "destroy.sh")
+    def destroy_task(self, resource_name: str, step: dict, envs: dict, db: Session, build_id: str) -> dict:
+        resource = resource_name
+        resource_type = step.get("type")
+        resource_path = os.path.expanduser(os.path.join(self.RESOURCES_FOLDER, resource))
+
+        logger.debug("Preparing to destroy resource '%s' of type '%s'", resource, resource_type)
+
+        if resource_type == "cloudformation":
+            destroy_template_path = os.path.expanduser(os.path.join(self.TEMPLATES_FOLDER, f"{self.DESTROY_CFN_SCRIPT}.j2"))
+        elif resource_type == "terraform":
+            destroy_template_path = os.path.expanduser(os.path.join(self.TEMPLATES_FOLDER, f"{self.DESTROY_TERRAFORM_SCRIPT}.j2"))
+        else:
+            destroy_template_path = os.path.expanduser(os.path.join(resource_path, f"{self.CUSTOM_DESTROY_SCRIPT}.j2"))
+
+        destroy_script_path = os.path.expanduser(os.path.join(resource_path, self.CUSTOM_DESTROY_SCRIPT))
         logger.debug("Preparing to destroy resource '%s'", resource)
 
-        # Load environment for the task.
-        envs = self.load_config(task)
         if os.path.exists(destroy_template_path):
             logger.debug("Found destroy template for resource '%s': %s", resource, destroy_template_path)
             rendered_destroy_script = self.render_template(destroy_template_path, envs)
@@ -41,14 +49,36 @@ class UnbuildService(BaseService):
         logger.info("Executing unbuild task: %s", task_name)
         # Only infra can be destroyed
         if task.get("type") == "infrastructure":
-            result = self.destroy_task(task, db, build_id)
-            self.update_status(task.get("resource"), task_name, result, db, build_id)
-            results.append(result)
-        return results
+            results = []
+            resource_name = task.get("resource")
+            steps = task.get("steps", [])
+            envs = self.load_config(task)
 
-    def unbuild(self, component: str, use_db: bool, db: Session) -> UnBuildResponse:
+            logger.debug("Finish loading envs ... '%s'", envs)
+
+            if not envs:  # Check if envs is empty
+                logger.error("Failed to load configuration for task '%s' (resource: %s). Aborting task execution.",
+                             task_name, resource_name)
+                return []  # Return an empty list if configuration loading failed
+
+            logger.debug("Start executing steps ...")
+
+            for step in steps:
+                try:
+                    result = self.destroy_task(resource_name, step, envs, db, build_id)
+                    results.append(result)
+                except Exception as e:
+                    logger.error("Step '%s' failed with error: %s", step.get("name"), str(e))
+                    return []  # Return an empty list if any step fails
+
+        return self.flatten_list(results)
+
+    def unbuild(self, component: str, task_path: str, use_db: bool, db: Session) -> UnBuildResponse:
         logger.info("Starting unbuild for component: %s", component)
         results = []
+
+        self.TASKS_FOLDER = os.path.expanduser(os.path.join(task_path, BaseService.TASKS_FOLDER))
+
         # Check if a component exists
         if not os.path.exists(os.path.join(self.TASKS_FOLDER, f"{component}.yml")):
             logger.error("Task file '%s.yml' not found for unbuild.", component)
@@ -113,7 +143,12 @@ class UnbuildService(BaseService):
             )
 
         overall_error = False
+
+        logger.info("=============")
+
         for task in tasks:
+            resource_type = task.get("type")
+            logger.debug("resource_type: '%s' ", resource_type)
             task_results = self.execute_task(task, db, build_id)
             if any(r.get("status") == BaseService.FAILED_STATE for r in task_results if isinstance(r, dict)):
                 overall_error = True
