@@ -81,7 +81,7 @@ Resources:
   EC2:
     Type: AWS::EC2::Instance
     Properties:
-      SubnetId: '{{ tooling_subnet_1 }}'
+      SubnetId: '{{ subnet_id }}'
       LaunchTemplate:
         LaunchTemplateId: !Ref EC2LaunchTemplate
         Version: !GetAtt EC2LaunchTemplate.LatestVersionNumber

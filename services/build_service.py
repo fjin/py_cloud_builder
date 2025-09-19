@@ -105,6 +105,7 @@ class BuildService(BaseService):
                         logger.error("Template path '%s' does not exist.", template_path)
                         raise RuntimeError(f"Template path '{template_path}' does not exist.")
 
+                    logger.debug("Resource config path: '%s'", resource_configs_path)
                     resource_envs = self.load_yaml(resource_configs_path)
                     logger.info("resource_envs: %s", resource_envs)
                     envs = self.render_and_merge_envs(self, envs, resource_envs)

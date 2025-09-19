@@ -61,7 +61,7 @@ class BaseService:
     @staticmethod
     def merge_envs(global_env, component_env):
         merged = {**global_env, **component_env}
-        # logger.debug("Merged environments: %s", merged)
+        logger.debug("Merged environments: %s", merged)
         return merged
 
     @staticmethod
