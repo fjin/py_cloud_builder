@@ -16,27 +16,31 @@ class BuildService(BaseService):
         action_type = step.get("type")
         resource_path = os.path.expanduser(os.path.join(self.RESOURCES_FOLDER, resource_name))
 
+        # If action_type is cloudformation, render action script (deploy_cfn.sh.j2) from template folder to resource folder
         if action_type == 'cloudformation':
             action_script = self.DEPLOY_CFN_SCRIPT
             action_template = self.DEPLOY_CFN_TEMPLATE
             action_script_path = os.path.expanduser(os.path.join(self.TEMPLATES_FOLDER, f"{action_script}.j2"))
             action_rendered_script_path = os.path.expanduser(os.path.join(resource_path, action_script))
+        # If action_type is terraform, render action script (deploy_cfn.sh.j2) from template folder to resource folder
         elif action_type == 'terraform':
             action_script = self.DEPLOY_TERRAFORM_SCRIPT
             action_template = self.DEPLOY_TERRAFORM_TEMPLATE
             action_script_path = os.path.expanduser(os.path.join(self.TEMPLATES_FOLDER, f"{action_script}.j2"))
             action_rendered_script_path = os.path.expanduser(os.path.join(resource_path, action_script))
+        # If action_type is custom-cloudformation, render custom action script (step.get("action_script")) from resource_path folder to resource folder
         elif action_type == 'custom-cloudformation':
             action_script = step.get("action_script")
             action_template = self.DEPLOY_CFN_TEMPLATE
             action_script_path = os.path.expanduser(os.path.join(resource_path, f"{action_script}.j2"))
             action_rendered_script_path = os.path.expanduser(os.path.join(resource_path, action_script))
+        # If action_type is custom-terraform, render custom action script (step.get("action_script")) from resource_path folder to resource folder
         elif action_type == 'custom-terraform':
             action_script = step.get("action_script")
             action_template = self.DEPLOY_TERRAFORM_TEMPLATE
             action_script_path = os.path.expanduser(os.path.join(resource_path, f"{action_script}.j2"))
             action_rendered_script_path = os.path.expanduser(os.path.join(resource_path, action_script))
-
+        # If not above cases, always render custom action script from resource folder to resource folder
         else:
             action_script = step.get("action_script")
             action_template = step.get("action_template")
@@ -58,6 +62,8 @@ class BuildService(BaseService):
                              step.get("action_script"))
                 raise RuntimeError(f"Failed to create the rendered template at '{action_rendered_script_path}'.")
 
+            # Here to check if we render cloud template from pre-defined template
+            # If not, render custom cloud template from resource folder to resource folder
             if action_type in {"cloudformation", "terraform", "custom-cloudformation", "custom-terraform"}:
                 logger.debug("No additional template rendering required for action type: %s", action_type)
                 use_template = step.get("use_template", False)
