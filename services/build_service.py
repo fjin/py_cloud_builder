@@ -101,7 +101,7 @@ class BuildService(BaseService):
 
                     resource_envs = self.load_yaml(resource_configs_path)
                     logger.info("resource_envs: %s", resource_envs)
-                    envs = self.merge_envs(envs, resource_envs)
+                    envs = self.render_and_merge_envs(self, envs, resource_envs)
                 else:
                     template_path = os.path.join(resource_path, f"{action_template}.j2")
             else:
@@ -119,6 +119,7 @@ class BuildService(BaseService):
             logger.error("Template rendering failed for render type '%s': %s", use_template, str(e))
             raise RuntimeError(f"Template rendering failed for {use_template}: {str(e)}") from e
 
+    # Executes all steps defined in a task for a given action (e.g., 'build')
     def execute_task(self, task: dict, action: str, db: Session, build_id: str) -> list:
         results = []
         task_name = task.get("name")

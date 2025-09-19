@@ -65,6 +65,32 @@ class BaseService:
         return merged
 
     @staticmethod
+    def render_and_merge_envs(self, envs: dict, resource_envs: dict) -> dict:
+        """
+        Render placeholders in resource_envs using envs as the context and merge the result into envs.
+        """
+        from jinja2 import Environment, StrictUndefined
+
+        jinja_env = Environment(
+            autoescape=False,
+            trim_blocks=True,
+            lstrip_blocks=True,
+            undefined=StrictUndefined  # Raise errors for undefined variables
+        )
+
+        logger.debug("Base envs: %s", envs)
+        logger.debug("Resource envs before rendering: %s", resource_envs)
+        for key, value in resource_envs.items():
+            if isinstance(value, str) and "{{" in value:
+                if "lookup" in value or "!Sub" in value:
+                    logger.debug("Skipping rendering for key: %s, value: %s", key, value)
+                    continue  # Skip rendering this value
+                template = jinja_env.from_string(value)
+                resource_envs[key] = template.render(envs)
+
+        return self.merge_envs(envs, resource_envs)
+
+    @staticmethod
     def render_template(template_path, context):
         logger.debug("Rendering template: %s with context: %s", template_path, context)
         env = Environment(loader=FileSystemLoader(os.path.dirname(template_path)))

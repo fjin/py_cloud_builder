@@ -75,36 +75,8 @@ Resources:
                 Value: {{ support_group }}
               - Key: DataClassification
                 Value: {{ data_classification }}
-        UserData: !Base64
-          'Fn::Join':
-            - ''
-            - - '#!/bin/bash -xe'
-              - |+
-
-              - >-
-              - exec >> /var/log/user-data.log
-              - |+
-
-              - >-
-              - exec 2>&1
-              - |+
-
-              - >-
-              - echo BEGIN
-              - |+
-
-              - >-
-              - date '+%Y-%m-%d %H:%M:%S'
-              - |+
-
-              - >-
-              - sudo su
-              - |+
-
-              - >-
-              - 'export no_proxy=$no_proxy,s3.ap-southeast-2.amazonaws.com'
-              - |+
-
+        UserData: !Base64 |
+{{ user_data | trim | indent(10, True) }}
 
   EC2:
     Type: AWS::EC2::Instance
