@@ -155,10 +155,16 @@ class BuildService(BaseService):
 
     def build(self, component: str, env_path: str, resource_path: str, task_path: str, db: Session) -> BuildResponse:
         # Validate input paths
-        if not env_path or not resource_path or not task_path:
-            raise ValueError("env_path, resource_path, and task_path must not be None or empty.")
         if not self.ENVIRONMENTS_FOLDER or not self.RESOURCES_FOLDER or not self.TASKS_FOLDER:
             raise ValueError("Service folders (ENVIRONMENTS_FOLDER, RESOURCES_FOLDER, TASKS_FOLDER) must be initialized.")
+
+        # If any of the paths are empty, default to current working directory
+        if not env_path:
+            env_path = os.getcwd()
+        if not resource_path:
+            resource_path = os.getcwd()
+        if not task_path:
+            task_path = os.getcwd()
 
         # Prepend the new paths to the existing paths
         self.ENVIRONMENTS_FOLDER = os.path.expanduser(os.path.join(env_path, BaseService.ENVIRONMENTS_FOLDER))

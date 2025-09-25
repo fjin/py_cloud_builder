@@ -128,6 +128,32 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
   `GET /status/?application_name=test-infra`  
   Returns the current steps and overall status from the active build/unbuild, or the most recent record if no build is in progress.
 
+### Use curl commands to test the endpoints
+- **Build Example:**
+
+  ```bash
+    curl -X POST "http://127.0.0.1:8000/build/" \
+        -H "Content-Type: application/json" \
+        -d '{
+        "component": "test_cfn_template",
+        "env_path": "~/work/py_builder/",
+        "resource_path": "~/work/py_builder/",
+        "task_path": "~/work/py_builder/"
+        }'
+  ```
+  
+  - **Unbuild Example:**
+
+    ```bash
+      curl -X POST "http://127.0.0.1:8000/unbuild/" \
+          -H "Content-Type: application/json" \
+          -d '{
+          "component": "test_cfn_template",
+          "task_path": "~/work/py_builder/",
+          "db_flag": false
+          }'
+    ```
+    
 ## AWS CLI and Credentials
 
 If you use AWS CLI or AWS SSO locally, mount your local `.aws` directory into the container:
