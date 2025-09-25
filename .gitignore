@@ -5,6 +5,7 @@
 **/destroy.sh
 **/status.sh
 resources/**/*.sh
+.coverage
 
 **/cfn.yml
 test.db
