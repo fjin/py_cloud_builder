@@ -17,6 +17,12 @@ py_builder/
 │   ├── build_service.py   # Build orchestration (provisioning AWS infra).
 │   ├── unbuild_service.py # Unbuild orchestration (destroying AWS infra).
 │   └── status_service.py  # Service to query the status of builds/unbuilds.
+├── main.py                # FastAPI application with endpoints for build, unbuild, and status.
+├── unit_tests/            # Unit tests for services (e.g., test_build_service.py
+│   ├── test_base_service.py
+│   ├── test_build_service.py    
+│   ├── test_unbuild_service.py
+│   └── test_status_service.py 
 ├── tasks/                 # YAML task definitions (e.g., test-infra.yml).
 ├── resources/             # Contains scripts and templates used by the build/unbuild processes.
 ├── environments/          # Contains YAML files with environment configurations.
@@ -96,8 +102,10 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
   Request Body:
   ```json
   {
-    "component": "test-infra",
-    "db_flag": "False"
+      "component": "test_cfn_template",
+      "env_path": "~/work/py_builder/",
+      "resource_path": "~/work/py_builder/",
+      "task_path": "~/work/py_builder/"
   }
   ```
   Triggers the build process based on the tasks defined in `tasks/test-infra.yml`.
@@ -108,8 +116,9 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
   Request Body:
   ```json
   {
-    "component": "test-infra",
-    "db_flag": "False"
+    "component": "test_cfn_template",
+    "task_path": "~/work/py_builder/",
+    "db_flag": false
   }
   ```
   Triggers the unbuild (destroy) process for the specified component. (Note: If unbuild is successful, `/status` may return "No record found" since the record is deleted.)
