@@ -208,7 +208,7 @@ Tests are written using Python’s built-in `unittest` framework and are located
 To run all tests from the project root:
 
 ```bash
-python -m unittest discover -s services
+python -m unittest discover -s unit_tests
 ```
 
 ### Checking Test Coverage
@@ -222,7 +222,7 @@ python -m unittest discover -s services
 2. **Run Tests with Coverage:**
 
    ```bash
-   coverage run -m unittest discover -s services
+   coverage run -m unittest discover -s unit_tests
    ```
 
 3. **Generate a Report:**

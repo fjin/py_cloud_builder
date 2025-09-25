@@ -1,4 +1,5 @@
 .idea
+.DS_Store
 **/deploy_cfn.sh
 **/deploy_tf.sh
 **/destroy.sh
@@ -22,3 +23,6 @@ environments/*
 # Ignore everything in tasks except test/
 tasks/*
 !tasks/test_.yml
+
+# Ignore everything in tasks except htmlcov/
+htmlcov/

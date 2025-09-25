@@ -160,42 +160,33 @@ class TestBaseService(unittest.TestCase):
         BaseService.delete_application_record(db, "dummy-uuid")
         self.assertEqual(len(db.applications), 0)
 
-    def test_load_config(self):
-        # Create temporary YAML files to simulate global and component environment files.
-        global_data = {'var': 'global'}
-        component_data = {'var': 'component'}
-        with tempfile.NamedTemporaryFile('w+', delete=False) as tf1:
-            yaml.dump(global_data, tf1)
-            global_path = tf1.name
-        with tempfile.NamedTemporaryFile('w+', delete=False) as tf2:
-            yaml.dump(component_data, tf2)
-            comp_path = tf2.name
-
-        # Simulate file structure by placing files in a temporary directory.
+    def test_load_config_merges_envs(self):
+        # Create temp directories and files
         temp_dir = tempfile.mkdtemp()
-        global_dir = os.path.join(temp_dir, "np")
-        comp_dir = os.path.join(temp_dir, "comp")
-        os.mkdir(global_dir)
-        os.mkdir(comp_dir)
-        global_file = os.path.join(global_dir, "np.yml")
-        comp_file = os.path.join(comp_dir, "np.yml")
-        os.rename(global_path, global_file)
-        os.rename(comp_path, comp_file)
+        global_env = {'foo': 'bar', 'common': 'global'}
+        component_env = {'common': 'component', 'extra': 'value'}
 
-        # Override the ENVIRONMENTS_FOLDER in our BaseService instance.
+        global_env_path = os.path.join(temp_dir, 'testenv.yml')
+        component_dir = os.path.join(temp_dir, 'myresource')
+        os.mkdir(component_dir)
+        component_env_path = os.path.join(component_dir, 'testenv.yml')
+
+        with open(global_env_path, 'w') as f:
+            yaml.dump(global_env, f)
+        with open(component_env_path, 'w') as f:
+            yaml.dump(component_env, f)
+
         self.bs.ENVIRONMENTS_FOLDER = temp_dir
+        task = {'resource': 'myresource', 'environment': 'testenv'}
 
-        task = {"resource": "comp", "environment": "np"}
-        config = self.bs.load_config(task)
-        # Expected: component env overrides global env.
-        expected = {"var": "component"}
-        self.assertEqual(config, expected)
+        result = self.bs.load_config(task)
+        expected = {'foo': 'bar', 'common': 'component', 'extra': 'value'}
+        self.assertEqual(result, expected)
 
-        # Cleanup temporary files and directories.
-        os.remove(global_file)
-        os.remove(comp_file)
-        os.rmdir(global_dir)
-        os.rmdir(comp_dir)
+        # Cleanup
+        os.remove(global_env_path)
+        os.remove(component_env_path)
+        os.rmdir(component_dir)
         os.rmdir(temp_dir)
 
 if __name__ == "__main__":
