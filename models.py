@@ -37,5 +37,5 @@ class Application(Base):
     application_name = Column(String, nullable=False)
     action = Column(String, nullable=False)  # e.g., "build" or "unbuild"
     status = Column(String, nullable=False)  # e.g., "started", "failed", "success"
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    timestamp = Column(DateTime, default=datetime.now(), nullable=False)
     tasks_built = Column(JSON, nullable=True)  # New field: list of tasks (resource names)
