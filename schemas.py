@@ -1,34 +1,5 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import Dict, List
-
-
-class UserCreate(BaseModel):
-    username: str
-    email: EmailStr
-    password: str
-
-
-class UserResponse(BaseModel):
-    id: int
-    username: str
-    email: str
-
-    class Config:
-        from_attributes = True
-
-
-class EnvironmentCreate(BaseModel):
-    name: str
-    status: str
-
-
-class EnvironmentResponse(BaseModel):
-    id: int
-    name: str
-    status: str
-
-    class Config:
-        from_attributes = True  # Ensures compatibility with SQLAlchemy models
 
 
 class ResourceCreate(BaseModel):
@@ -49,6 +20,13 @@ class ResourceResult(BaseModel):
     resource: str
     status: str
     message: str
+
+
+class EnvironmentResponse(BaseModel):
+    component: str
+    status: str
+    message: str
+    environment: Dict  # Contains all loaded env variables
 
 
 class BuildRequest(BaseModel):

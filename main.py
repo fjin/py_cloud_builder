@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routes import users, items, environments, resources, build, unbuild, status
+from routes import environment, resources, build, unbuild, status
 from database import Base, engine
 import logging
 
@@ -9,17 +9,13 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 
-app = FastAPI(title="My API Server", version="1.0")
+app = FastAPI(title="PY_Builder API Server", version="1.0")
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
 # Include API routes
-app.include_router(users.router, prefix="/users", tags=["Users"])
-
-app.include_router(items.router, prefix="/items", tags=["Items"])
-
-app.include_router(environments.router, prefix="/environments", tags=["Environments"])
+app.include_router(environment.router, prefix="/environment", tags=["Environment"])
 
 app.include_router(resources.router, prefix="/resources", tags=["Resources"])
 

@@ -144,8 +144,6 @@ class UnbuildService(BaseService):
 
         overall_error = False
 
-        logger.info("=============")
-
         for task in tasks:
             resource_type = task.get("type")
             logger.debug("resource_type: '%s' ", resource_type)
