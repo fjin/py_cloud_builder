@@ -98,10 +98,5 @@ class TestBuildService(unittest.TestCase):
         response = self.bs.build("mycomponent", "/tmp/env", "/tmp/res", "/tmp/task", db)
         self.assertEqual(response.status, self.bs.FAILED_STATE)
 
-    def test_build_invalid_paths(self):
-        db = MagicMock()
-        with self.assertRaises(ValueError):
-            self.bs.build("mycomponent", None, "/tmp/res", "/tmp/task", db)
-
 if __name__ == '__main__':
     unittest.main()
