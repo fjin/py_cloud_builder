@@ -6,6 +6,7 @@ from services.base_service import BaseService
 
 logger = logging.getLogger(__name__)
 
+
 class EnvironmentService(BaseService):
     def get_environment(self, component: str, env_path: str, resource_path: str, task_path: str) -> EnvironmentResponse:
         # Validate input paths
