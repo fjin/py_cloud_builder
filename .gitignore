@@ -23,7 +23,7 @@ environments/*
 
 # Ignore everything in tasks except test/
 tasks/*
-!tasks/test_.yml
+!tasks/test_*.yml
 
 # Ignore everything in tasks except htmlcov/
 htmlcov/

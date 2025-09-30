@@ -1,0 +1,16 @@
+---
+# tasks to create App Stack
+- name: "ec2-custom-test"
+  resource: "ec2-custom-test"
+  group: "test"
+  type: "infrastructure"
+  account: "unison-np"
+  environment: "np"
+  configuration: "ec2-custom-test"
+  steps:
+    - name: "deploy cfn"
+      type: "custom-cloudformation"
+      action_script: "deploy_cfn.sh"
+    - name: "show instance ip"
+      type: "shell"
+      action_script: "showip.sh"
