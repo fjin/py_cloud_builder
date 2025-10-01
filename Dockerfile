@@ -30,20 +30,10 @@ COPY requirements.txt .
 RUN pip3 install --upgrade pip --index-url https://${NEXUS_URL}/repository/pypi-central-proxy/simple/ --trusted-host ${NEXUS_URL} && \
     pip install --index-url https://${NEXUS_URL}/repository/pypi-central-proxy/simple/ --trusted-host ${NEXUS_URL} -r requirements.txt  --no-cache-dir
 
-# Install AWS CLI v2
-#RUN apt-get update && apt-get install -y curl unzip && \
-#    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
-#    unzip awscliv2.zip && \
-#    ./aws/install && \
-#    rm -rf aws awscliv2.zip && \
-#    apt-get remove -y curl unzip && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
-
 RUN awsv2 --install && \
     ln -s $(command -v awsv2) /usr/local/bin/aws
 
 RUN aws --version
-
-#RUN aws --version
 
 # Copy the rest of your application code into the container
 COPY . .
