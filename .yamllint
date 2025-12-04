@@ -1,0 +1,10 @@
+extends: default
+
+ignore: |
+  .github/workflows/
+
+
+rules:
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
+    check-keys: false

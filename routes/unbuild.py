@@ -1,14 +1,17 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from database import get_db
 from schemas import UnBuildRequest, UnBuildResponse
-from services.build_service import BuildService
+from services.unbuild_service import UnbuildService
 
 router = APIRouter()
-build_service = BuildService()
+unbuild_service = UnbuildService()
+
 
 @router.post("/", response_model=UnBuildResponse)
-def trigger_build(request: UnBuildRequest):
+def trigger_unbuild(request: UnBuildRequest, db: Session = Depends(get_db)):
     if not request.component:
         raise HTTPException(status_code=400, detail="Component name is required")
 
-    result = build_service.unbuild(request.component)
+    result = unbuild_service.unbuild(request.component, request.task_path, request.db_flag, db)
     return result

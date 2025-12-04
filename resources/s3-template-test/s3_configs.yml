@@ -1,0 +1,3 @@
+---
+version_status: "Enabled"
+workload_kms_id: "{{ lookup('aws_ssm', '/common/kms/workload_cmk_id') }}"

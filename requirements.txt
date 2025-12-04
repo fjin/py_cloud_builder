@@ -5,7 +5,13 @@ alembic
 passlib[bcrypt]
 python-jose[cryptography]
 email-validator
-pydantic
+pydantic>=2.8.0
+pydantic-core>=2.8.0  # Ensure pydantic-core is compatible
 pyyaml
 jinja2
 boto3
+botocore
+PyYAML
+coverage
+awscliv2
+setuptools

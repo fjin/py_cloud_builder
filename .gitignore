@@ -1,8 +1,29 @@
 .idea
+.DS_Store
 **/deploy_cfn.sh
 **/deploy_tf.sh
+**/destroy.sh
 **/status.sh
+resources/**/*.sh
+.coverage
+
 **/cfn.yml
 test.db
 logs
+app.log
 __pycache__
+
+# Ignore everything in resources except test/
+resources/*
+!resources/*-test/
+
+# Ignore everything in environments except test/
+environments/*
+!environments/*-test/
+
+# Ignore everything in tasks except test/
+tasks/*
+!tasks/test_*.yml
+
+# Ignore everything in tasks except htmlcov/
+htmlcov/

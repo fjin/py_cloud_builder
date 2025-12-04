@@ -1,0 +1,129 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: APP NLB-ASG deployment template
+Resources:
+  EC2LaunchTemplate:
+    Type: 'AWS::EC2::LaunchTemplate'
+    Properties:
+      LaunchTemplateName: !Sub ${AWS::StackName}-LaunchTemplate
+      LaunchTemplateData:
+        KeyName: {{ key_pair }}
+        DisableApiTermination: false
+        ImageId: {{ instance_ami }}
+        InstanceType: {{ instance_type }}
+        SecurityGroupIds:
+          - {{ security_group_id }}
+        MetadataOptions:
+          HttpPutResponseHopLimit: 2
+          HttpTokens: required
+          InstanceMetadataTags: enabled
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: !Sub '${AWS::StackName}-{{ ec2_name }}'
+              - Key: ApplicationID
+                Value: {{ application_id }}
+              - Key: Environment
+                Value: {{ environment }}
+              - Key: Platform
+                Value: linux
+              - Key: CostCentre
+                Value: {{ cost_centre }}
+              - Key: Owner
+                Value: {{ owner }}
+              - Key: PowerMgt
+                Value: {{ power_mgt }}
+              - Key: Snapshot
+                Value: {{ snapshot }}
+              - Key: PatchCycle
+                Value: {{ account_type }}
+              - Key: PatchGroup
+                Value: {{ account_type }}
+              - Key: AppCategory
+                Value: {{ app_category }}
+              - Key: SupportGroup
+                Value: {{ support_group }}
+              - Key: DataClassification
+                Value: {{ data_classification }}
+          # Some of these tags are mandatory and deployment will fail without them
+          - ResourceType: volume
+            Tags:
+              - Key: Name
+                Value: !Sub '${AWS::StackName}-{{ ec2_name }}'
+              - Key: ApplicationID
+                Value: {{ application_id }}
+              - Key: Environment
+                Value: {{ environment }}
+              - Key: Platform
+                Value: linux
+              - Key: CostCentre
+                Value: {{ cost_centre }}
+              - Key: Owner
+                Value: {{ owner }}
+              - Key: PowerMgt
+                Value: {{ power_mgt }}
+              - Key: Snapshot
+                Value: {{ snapshot }}
+              - Key: PatchCycle
+                Value: {{ account_type }}
+              - Key: PatchGroup
+                Value: {{ account_type }}
+              - Key: AppCategory
+                Value: {{ app_category }}
+              - Key: SupportGroup
+                Value: {{ support_group }}
+              - Key: DataClassification
+                Value: {{ data_classification }}
+        UserData: !Base64 |
+{{ user_data | trim | indent(10, True) }}
+
+  EC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      SubnetId: '{{ subnet_id }}'
+      LaunchTemplate:
+        LaunchTemplateId: !Ref EC2LaunchTemplate
+        Version: !GetAtt EC2LaunchTemplate.LatestVersionNumber
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-{{ ec2_name }}'
+        - Key: ApplicationID
+          Value: {{ application_id }}
+        - Key: Environment
+          Value: {{ environment }}
+        - Key: Platform
+          Value: linux
+        - Key: CostCentre
+          Value: {{ cost_centre }}
+        - Key: Owner
+          Value: {{ owner }}
+        - Key: PowerMgt
+          Value: {{ power_mgt }}
+        - Key: Snapshot
+          Value: {{ snapshot }}
+        - Key: PatchCycle
+          Value: {{ account_type }}
+        - Key: PatchGroup
+          Value: {{ account_type }}
+        - Key: AppCategory
+          Value: {{ app_category }}
+        - Key: SupportGroup
+          Value: {{ support_group }}
+        - Key: DataClassification
+          Value: {{ data_classification }}
+
+Outputs:
+  EC2IP:
+    Description: EC2IP
+    Value: !GetAtt EC2.PrivateIp
+    Export:
+      Name: !Sub "${AWS::StackName}-EC2IP"
+
+  EC2ID:
+    Description: EC2ID
+    Value: !GetAtt EC2.InstanceId
+    Export:
+      Name: !Sub "${AWS::StackName}-EC2ID"
+
+...

@@ -7,6 +7,7 @@ from typing import List
 
 router = APIRouter()
 
+
 # Create a new resource
 @router.post("/", response_model=ResourceResponse)
 def create_resource(resource: ResourceCreate, db: Session = Depends(get_db)):
@@ -19,6 +20,7 @@ def create_resource(resource: ResourceCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_resource)
     return new_resource
+
 
 # Get all resources
 @router.get("/", response_model=List[ResourceResponse])

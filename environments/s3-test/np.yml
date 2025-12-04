@@ -1,0 +1,2 @@
+stack_name: "my-test-s3-stack"
+bucket_name: "unison-test-s3-bucket"

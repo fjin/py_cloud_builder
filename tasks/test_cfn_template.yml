@@ -1,0 +1,32 @@
+---
+# tasks to create App Stack
+- name: "s3-test"
+  resource: "s3-template-test"
+  group: "test"
+  type: "infrastructure"
+  account: "unison-np"
+  environment: "np"
+  configuration: "s3-template-test"
+  steps:
+    - name: "deploy cfn"
+      type: "cloudformation"
+      use_template: "true"
+      resource: "s3"
+      action_config: "s3_configs.yml"
+
+- name: "ec2-test"
+  resource: "ec2-template-test"
+  group: "test"
+  type: "infrastructure"
+  account: "unison-np"
+  environment: "np"
+  configuration: "ec2-template-test"
+  steps:
+    - name: "deploy cfn"
+      type: "cloudformation"
+      use_template: "true"
+      resource: "ec2"
+      action_config: "ec2_configs.yml"
+    - name: "show instance ip"
+      type: "shell"
+      action_script: "showip.sh"
